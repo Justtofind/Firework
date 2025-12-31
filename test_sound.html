@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音效测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #000;
+            color: #fff;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #ffbf36;
+        }
+        button {
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #ff0043;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #cc0036;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            background: #333;
+            border-radius: 5px;
+        }
+        .success { color: #14fc56; }
+        .error { color: #ff0043; }
+        .info { color: #1e7fff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎆 烟花模拟器 - 音效测试</h1>
+        
+        <div class="status">
+            <h2>测试说明：</h2>
+            <ol>
+                <li>点击下面的按钮测试各种音效</li>
+                <li>如果听不到声音，请检查：
+                    <ul>
+                        <li>浏览器音量是否开启</li>
+                        <li>系统音量是否开启</li>
+                        <li>浏览器是否允许自动播放音频</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <h2>音效测试按钮：</h2>
+        <button onclick="testSound('lift')">🚀 发射音效 (lift)</button>
+        <button onclick="testSound('burst')">💥 爆炸音效 (burst)</button>
+        <button onclick="testSound('crackle')">✨ 爆裂音效 (crackle)</button>
+        <button onclick="testSound('crackleSmall')">⚡ 小爆裂音效 (crackleSmall)</button>
+        <button onclick="testSound('burstSmall')">💫 小爆炸音效 (burstSmall)</button>
+        <br>
+        <button onclick="testBgMusic()">🎵 背景音乐测试</button>
+        <button onclick="testFireworkSequence()">🎆 完整烟花音效序列</button>
+    </div>
+
+    <script>
+        const soundManager = {
+            baseURL: "./audio/",
+            ctx: new (window.AudioContext || window.webkitAudioContext)(),
+            sources: {
+                lift: {
+                    volume: 1,
+                    fileNames: ["lift1.mp3", "lift2.mp3", "lift3.mp3"]
+                },
+                burst: {
+                    volume: 1,
+                    fileNames: ["burst1.mp3", "burst2.mp3"]
+                },
+                burstSmall: {
+                    volume: 0.25,
+                    fileNames: ["burst-sm-1.mp3", "burst-sm-2.mp3"]
+                },
+                crackle: {
+                    volume: 0.2,
+                    fileNames: ["crackle1.mp3"]
+                },
+                crackleSmall: {
+                    volume: 0.3,
+                    fileNames: ["crackle-sm-1.mp3"]
+                }
+            },
+            buffers: {},
+
+            async preload() {
+                const status = document.getElementById('status');
+                status.innerHTML = '<p class="info">⏳ 正在加载音频文件...</p>';
+                
+                try {
+                    for (const [type, source] of Object.entries(this.sources)) {
+                        this.buffers[type] = [];
+                        for (const fileName of source.fileNames) {
+                            const response = await fetch(this.baseURL + fileName);
+                            const arrayBuffer = await response.arrayBuffer();
+                            const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+                            this.buffers[type].push(audioBuffer);
+                        }
+                    }
+                    status.innerHTML = '<p class="success">✅ 音频文件加载成功！可以开始测试了。</p>';
+                } catch (error) {
+                    status.innerHTML = `<p class="error">❌ 音频加载失败: ${error.message}</p>`;
+                }
+            },
+
+            playSound(type, volume = 1) {
+                if (!this.buffers[type] || this.buffers[type].length === 0) {
+                    console.error(`音效类型 "${type}" 未加载`);
+                    return;
+                }
+
+                const source = this.sources[type];
+                const buffer = this.buffers[type][Math.floor(Math.random() * this.buffers[type].length)];
+                
+                const gainNode = this.ctx.createGain();
+                gainNode.gain.value = source.volume * volume;
+
+                const bufferSource = this.ctx.createBufferSource();
+                bufferSource.buffer = buffer;
+                bufferSource.connect(gainNode);
+                gainNode.connect(this.ctx.destination);
+                bufferSource.start(0);
+
+                console.log(`播放音效: ${type}, 音量: ${gainNode.gain.value}`);
+            }
+        };
+
+        function testSound(type) {
+            const status = document.getElementById('status');
+            status.innerHTML = `<p class="info">🔊 正在播放: ${type}</p>`;
+            soundManager.playSound(type);
+        }
+
+        function testBgMusic() {
+            const status = document.getElementById('status');
+            const bgMusic = new Audio('./audio/Happy-New-Year-A-Teens.mp3');
+            bgMusic.volume = 0.3;
+            bgMusic.play().then(() => {
+                status.innerHTML = '<p class="success">🎵 背景音乐播放中...</p>';
+            }).catch(error => {
+                status.innerHTML = `<p class="error">❌ 背景音乐播放失败: ${error.message}</p>`;
+            });
+        }
+
+        function testFireworkSequence() {
+            const status = document.getElementById('status');
+            status.innerHTML = '<p class="info">🎆 模拟完整烟花音效序列...</p>';
+            
+            // 发射
+            soundManager.playSound('lift');
+            
+            // 1秒后爆炸
+            setTimeout(() => {
+                soundManager.playSound('burst');
+                
+                // 添加爆裂音效
+                setTimeout(() => soundManager.playSound('crackle', 0.8), 50);
+                setTimeout(() => soundManager.playSound('crackleSmall', 0.6), 150);
+                setTimeout(() => soundManager.playSound('crackleSmall', 0.5), 250);
+                setTimeout(() => soundManager.playSound('burstSmall', 0.7), 100);
+                
+                status.innerHTML = '<p class="success">✅ 完整烟花音效序列播放完成！</p>';
+            }, 1000);
+        }
+
+        // 页面加载时预加载音频
+        window.addEventListener('DOMContentLoaded', () => {
+            soundManager.preload();
+        });
+    </script>
+</body>
+</html>
